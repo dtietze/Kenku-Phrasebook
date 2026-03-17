@@ -53,12 +53,7 @@
           "microphonePermission": "Kenku Phrasebook needs microphone access to record phrases you've heard."
         }
       ],
-      [
-        "@react-native-voice/voice",
-        {
-          "speechRecognitionPermission": "Kenku Phrasebook uses speech recognition to transcribe phrases."
-        }
-      ]
+      "expo-document-picker"
     ],
     "experiments": {
       "typedRoutes": true

@@ -4,7 +4,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Allow .wasm files for SQLite web worker
+// Allow .wasm files for the SQLite web worker
 config.resolver.assetExts.push('wasm');
 
 module.exports = config;

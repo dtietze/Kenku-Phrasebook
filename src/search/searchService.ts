@@ -32,6 +32,34 @@ import {
 import { getPhrasesByIds, listPhrases } from '../db/repositories/phrases';
 
 // ---------------------------------------------------------------------------
+// FTS5 availability check
+// ---------------------------------------------------------------------------
+
+/**
+ * Cached flag: null = not yet checked, true/false = result of first check.
+ * FTS5 is available on iOS/Android (compiled into native SQLite) but absent
+ * from the wa-sqlite WASM binary used by expo-sqlite on web.
+ */
+let _fts5Available: boolean | null = null;
+
+async function isFts5Available(db: SQLite.SQLiteDatabase): Promise<boolean> {
+  if (_fts5Available !== null) return _fts5Available;
+
+  try {
+    // A cheap existence check: query the sqlite_master for our FTS table.
+    // If FTS5 wasn't available during migration the table won't exist.
+    const row = await db.getFirstAsync<{ count: number }>(
+      `SELECT COUNT(*) AS count FROM sqlite_master
+       WHERE type = 'table' AND name = 'phrases_fts';`
+    );
+    _fts5Available = (row?.count ?? 0) > 0;
+  } catch {
+    _fts5Available = false;
+  }
+  return _fts5Available;
+}
+
+// ---------------------------------------------------------------------------
 // FTS5 search
 // ---------------------------------------------------------------------------
 
@@ -42,7 +70,7 @@ interface FtsRow {
 
 /**
  * Run an FTS5 query and return phrase IDs with normalised scores.
- * Returns an empty array if the query is blank or too short.
+ * Returns an empty map if FTS5 is unavailable or the query is blank/too short.
  */
 async function ftsSearch(
   db: SQLite.SQLiteDatabase,
@@ -50,6 +78,12 @@ async function ftsSearch(
 ): Promise<Map<string, number>> {
   const trimmed = queryText.trim();
   if (trimmed.length < 2) return new Map();
+
+  if (!(await isFts5Available(db))) {
+    // FTS5 not compiled into the SQLite build (e.g. web/wa-sqlite).
+    // Delegate to the LIKE fallback so "exact" mode still works on web.
+    return likeSearch(db, trimmed);
+  }
 
   // FTS5 MATCH syntax: append * for prefix matching on the last token
   const ftsQuery = trimmed
@@ -84,6 +118,38 @@ async function ftsSearch(
     // FTS5 syntax errors can be thrown for malformed queries; return empty
     return new Map();
   }
+}
+
+// ---------------------------------------------------------------------------
+// LIKE fallback (used on web where FTS5 is unavailable)
+// ---------------------------------------------------------------------------
+
+/**
+ * Simple substring search across text, context, and speaker_name columns.
+ * Every matching phrase gets a score of 1.0 — there is no ranking.
+ * Used automatically when FTS5 is not compiled into the SQLite build.
+ */
+async function likeSearch(
+  db: SQLite.SQLiteDatabase,
+  queryText: string
+): Promise<Map<string, number>> {
+  // Split into words so multi-word queries require ALL words to appear
+  const words = queryText.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return new Map();
+
+  const conditions = words.map(
+    () => '(p.text LIKE ? OR p.context LIKE ? OR p.speaker_name LIKE ?)'
+  );
+  const params = words.flatMap((w) => [`%${w}%`, `%${w}%`, `%${w}%`]);
+
+  const rows = await db.getAllAsync<{ id: string }>(
+    `SELECT id FROM phrases p WHERE ${conditions.join(' AND ')} LIMIT 100;`,
+    params
+  );
+
+  const scores = new Map<string, number>();
+  for (const row of rows) scores.set(row.id, 1.0);
+  return scores;
 }
 
 // ---------------------------------------------------------------------------

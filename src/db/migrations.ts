@@ -101,16 +101,30 @@ const MIGRATIONS: Migration[] = [
       // FTS5 virtual table for fast full-text search.
       // Declared as a "content table" backed by phrases so we don't duplicate
       // the text, but we must keep it in sync manually (no auto-triggers).
-      await db.execAsync(`
-        CREATE VIRTUAL TABLE IF NOT EXISTS phrases_fts USING fts5(
-          phrase_id UNINDEXED,
-          text,
-          context,
-          speaker_name,
-          content='phrases',
-          content_rowid='rowid'
+      //
+      // FTS5 is a SQLite extension that is compiled into the native SQLite
+      // builds on iOS and Android, but is NOT included in the wa-sqlite WASM
+      // binary used by expo-sqlite on web.  We attempt to create the table and
+      // silently skip if the extension is unavailable; the search service
+      // detects the absence and falls back to LIKE-based search on web.
+      try {
+        await db.execAsync(`
+          CREATE VIRTUAL TABLE IF NOT EXISTS phrases_fts USING fts5(
+            phrase_id UNINDEXED,
+            text,
+            context,
+            speaker_name,
+            content='phrases',
+            content_rowid='rowid'
+          );
+        `);
+      } catch (e) {
+        console.warn(
+          '[DB] FTS5 is not available on this platform (expected on web). ' +
+          'Full-text search will use a LIKE fallback.',
+          e
         );
-      `);
+      }
 
       // Useful indexes
       await db.execAsync(`
