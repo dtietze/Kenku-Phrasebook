@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Kenku Phrasebook",
+    "slug": "kenku-phrasebook",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "kenku-phrasebook",
+    "platforms": ["ios", "android", "web"],
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/images/icon.png",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f0f1a"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0f0f1a"
+      },
+      "package": "com.kenkuphrasebook",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.kenkuphrasebook",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Kenku Phrasebook needs microphone access to record phrases you've heard.",
+        "NSSpeechRecognitionUsageDescription": "Kenku Phrasebook uses on-device speech recognition to transcribe recorded phrases.",
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png",
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Kenku Phrasebook needs microphone access to record phrases you've heard."
+        }
+      ],
+      [
+        "@react-native-voice/voice",
+        {
+          "speechRecognitionPermission": "Kenku Phrasebook uses speech recognition to transcribe phrases."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
